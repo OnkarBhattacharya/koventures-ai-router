@@ -1,0 +1,23 @@
+line-length = 100
+target-version = "py311"
+
+[lint]
+# High-signal rules: real bugs, dangerous patterns, and import hygiene.
+# Cosmetic style rules (UP/C4/SIM/N) are intentionally omitted so the gate
+# catches defects rather than noise.
+select = [
+    "F",    # Pyflakes — undefined names, unused imports, unused vars (real bugs)
+    "E9",   # Syntax errors
+    "E711", "E712", "E713", "E714", # Comparison pitfalls (None/True/False/is/notin)
+    "E721", # Type comparison with type() instead of isinstance()
+    "E722", # Bare except
+    "E731", # Lambda assignment
+    "E741", "E742", "E743", # Ambiguous / class / variable name shadowing
+    "B",    # Flake8-bugbear — likely logic bugs
+    "I",    # Import sorting / unused imports
+    "RUF100", # Unused noqa directives
+]
+ignore = []
+
+[lint.per-file-ignores]
+"tests/*" = ["B", "F401", "F811"]
