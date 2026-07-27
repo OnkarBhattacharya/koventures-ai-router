@@ -25,4 +25,5 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository_url: https://python.pkg.github.com/OnkarBhattacharya
-          attestations: false
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
