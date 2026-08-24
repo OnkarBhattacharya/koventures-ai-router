@@ -112,16 +112,18 @@ USE_CASE_POLICY: Dict[UseCase, UseCasePolicy] = {
 # ---------------------------------------------------------------------
 # Model catalog: tier -> candidate models.
 #
-# "open_frontier" is a new tier alongside the existing tier0-tier3/tier_r
-# ladder from model_security.py. It groups MIT-licensed open-weight
+# "open_frontier" is a new tier alongside the tier0-tier3/tier_r ladder used
+# by the upstream OMsolutions deployment (model_security.py, not part of
+# this standalone package). It groups MIT-licensed open-weight
 # models, which under AI Act Art. 53(2) carry lighter GPAI provider
 # obligations unless designated systemic-risk — routing preferentially
 # into this tier is a deliberate compliance-cost lever, not just a
 # cost/latency one.
 #
-# tier0-tier2 and part of tier3 are unchanged from the existing
-# model_security.py allowlist and are omitted here for brevity; merge
-# at load time rather than duplicating that list.
+# NOTE: in this standalone package MODEL_CATALOG only defines
+# "open_frontier" and "tier3". Policies referencing tier0, tier1,
+# tier2 or tier_r therefore contribute no candidates here; define them
+# via ModelRouter(model_catalog=...) if you need those tiers.
 # ---------------------------------------------------------------------
 MODEL_CATALOG: Dict[str, List[Dict[str, str]]] = {
     "open_frontier": [

@@ -3,6 +3,7 @@
 import pytest
 
 from koventures_ai_router.classifier import RiskAssessmentResult, RiskWizard
+from koventures_ai_router.governance import ModelRiskLevel
 
 
 def test_risk_wizard_all_no_returns_low_risk():
@@ -49,7 +50,7 @@ def test_risk_wizard_high_risk_answers_return_high_risk():
 
 def test_risk_assessment_result_optional_remediation():
     result = RiskAssessmentResult(
-        risk_tier=RiskWizard()._checks[0].weight,  # any risk tier
+        risk_tier=ModelRiskLevel.MINIMAL,
         score=0.0,
         flags=[],
         rationale="test",

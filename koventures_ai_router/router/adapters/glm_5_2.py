@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_BASE_URL = "https://open.bigmodel.cn/api/paas/v1"
 DEFAULT_MODEL = "glm-5.2"
+DEFAULT_TIMEOUT_SECONDS = 30.0
 
 
 class GLM52Client:
@@ -18,10 +19,12 @@ class GLM52Client:
         api_key: Optional[str] = None,
         base_url: str = DEFAULT_BASE_URL,
         model: str = DEFAULT_MODEL,
+        timeout: float = DEFAULT_TIMEOUT_SECONDS,
     ):
         self.api_key = api_key or os.getenv("GLM_API_KEY")
         self.base_url = base_url.rstrip("/")
         self.model = model
+        self.timeout = timeout
 
     def generate(
         self,
@@ -41,7 +44,11 @@ class GLM52Client:
         try:
             from openai import OpenAI
 
-            client = OpenAI(api_key=self.api_key, base_url=f"{self.base_url}/chat/completions")
+            client = OpenAI(
+                api_key=self.api_key,
+                base_url=self.base_url,
+                timeout=self.timeout,
+            )
             resp = client.chat.completions.create(
                 model=self.model,
                 messages=[

@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_BASE_URL = "https://api.deepseek.com/v1"
 DEFAULT_MODEL = "deepseek-chat"
+DEFAULT_TIMEOUT_SECONDS = 30.0
 
 
 class DeepSeekV4Client:
@@ -18,10 +19,12 @@ class DeepSeekV4Client:
         api_key: Optional[str] = None,
         base_url: str = DEFAULT_BASE_URL,
         model: str = DEFAULT_MODEL,
+        timeout: float = DEFAULT_TIMEOUT_SECONDS,
     ):
         self.api_key = api_key or os.getenv("DEEPSEEK_API_KEY")
         self.base_url = base_url.rstrip("/")
         self.model = model
+        self.timeout = timeout
 
     def generate(
         self,
@@ -41,7 +44,11 @@ class DeepSeekV4Client:
         try:
             from openai import OpenAI
 
-            client = OpenAI(api_key=self.api_key, base_url=self.base_url)
+            client = OpenAI(
+                api_key=self.api_key,
+                base_url=self.base_url,
+                timeout=self.timeout,
+            )
             resp = client.chat.completions.create(
                 model=self.model,
                 messages=[
