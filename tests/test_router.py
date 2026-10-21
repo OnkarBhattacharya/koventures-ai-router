@@ -1,11 +1,11 @@
-"""Tests for koventures_ai_router.router"""
+"""Tests for accolaide_ai_router.router"""
 
 import pytest
 
-from koventures_ai_router.governance import AIGovernanceManager, AuditLogger, ComplianceAuditTrail
-from koventures_ai_router.router import ModelRouter, NoEligibleModelError, UseCase
-from koventures_ai_router.router.policy import resolve
-from koventures_ai_router.router.router import CircuitBreaker
+from accolaide_ai_router.governance import AIGovernanceManager, AuditLogger, ComplianceAuditTrail
+from accolaide_ai_router.router import ModelRouter, NoEligibleModelError, UseCase
+from accolaide_ai_router.router.policy import resolve
+from accolaide_ai_router.router.router import CircuitBreaker
 
 
 def test_resolve_returns_policy_for_known_use_case():

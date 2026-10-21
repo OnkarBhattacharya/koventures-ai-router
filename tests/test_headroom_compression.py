@@ -7,11 +7,11 @@ import pytest
 # Ensure we can import from the project
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from koventures_ai_router.router.router import ModelRouter
-from koventures_ai_router.router import UseCase
-from koventures_ai_router.router.policy import resolve
-from koventures_ai_router.governance.ai_governance import AIGovernanceManager
-from koventures_ai_router.governance.audit_logging import ComplianceAuditTrail, AuditLogger
+from accolaide_ai_router.router.router import ModelRouter
+from accolaide_ai_router.router import UseCase
+from accolaide_ai_router.router.policy import resolve
+from accolaide_ai_router.governance.ai_governance import AIGovernanceManager
+from accolaide_ai_router.governance.audit_logging import ComplianceAuditTrail, AuditLogger
 
 
 class FakeAdapter:
@@ -31,7 +31,7 @@ def test_headroom_disabled_routes_normally(monkeypatch):
         del os.environ["HEADROOM_ENABLED"]
     
     # Mock _get_adapter to return our fake adapter
-    monkeypatch.setattr('koventures_ai_router.router.router._get_adapter', lambda _: FakeAdapter())
+    monkeypatch.setattr('accolaide_ai_router.router.router._get_adapter', lambda _: FakeAdapter())
     
     router = ModelRouter(
         governance=AIGovernanceManager(),
@@ -63,7 +63,7 @@ def test_headroom_enabled_token_delta_present(monkeypatch):
     
     try:
         # Mock _get_adapter to return our fake adapter
-        monkeypatch.setattr('koventures_ai_router.router.router._get_adapter', lambda _: FakeAdapter())
+        monkeypatch.setattr('accolaide_ai_router.router.router._get_adapter', lambda _: FakeAdapter())
         
         router = ModelRouter(
             governance=AIGovernanceManager(),
@@ -105,7 +105,7 @@ def test_headroom_failure_does_not_block_routing(monkeypatch):
     
     try:
         # Mock _get_adapter to return our fake adapter
-        monkeypatch.setattr('koventures_ai_router.router.router._get_adapter', lambda _: FakeAdapter())
+        monkeypatch.setattr('accolaide_ai_router.router.router._get_adapter', lambda _: FakeAdapter())
         
         router = ModelRouter(
             governance=AIGovernanceManager(),
@@ -117,7 +117,7 @@ def test_headroom_failure_does_not_block_routing(monkeypatch):
         def mock_compress(*args, **kwargs):
             raise Exception("Compression failed")
         
-        monkeypatch.setattr('koventures_ai_router.router.router.compress', mock_compress)
+        monkeypatch.setattr('accolaide_ai_router.router.router.compress', mock_compress)
         
         use_case = UseCase.OPEN_CHAT
         result = router.route_and_generate(

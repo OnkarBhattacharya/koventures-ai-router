@@ -1,19 +1,19 @@
-# Standalone Usage Guide — `koventures-ai-router`
+# Standalone Usage Guide — `accolaide-ai-router`
 
-Use this guide to install `koventures-ai-router` 0.2.0 in another project. The package is proprietary to Accolaide and is not on PyPI. Runtime dependency: `headroom-ai`.
+Use this guide to install `accolaide-ai-router` 0.2.0 in another project. Import it as `accolaide_ai_router`. The package is proprietary to Accolaide and is not on PyPI. The GitHub repository slug is still `koventures-ai-router`. Runtime dependency: `headroom-ai`.
 
 ## Installation
 
 ### Option A — Install directly from GitHub (recommended for personal/private repos)
 
 ```bash
-pip install "koventures-ai-router @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git"
+pip install "accolaide-ai-router @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git"
 ```
 
 In `requirements.txt`:
 
 ```text
-koventures-ai-router @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git
+accolaide-ai-router @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git
 ```
 
 This installs the package directly from the tagged source. No registry or publish step is required.
@@ -25,24 +25,24 @@ If GitHub Packages is enabled for the repo, add the index URL:
 ```text
 --index-url https://python.pkg.github.com/OnkarBhattacharya/simple/
 --extra-index-url https://pypi.org/simple/
-koventures-ai-router==0.2.0
+accolaide-ai-router==0.2.0
 ```
 
 ## Extras
 
 ```bash
 # Flask API governance helpers
-pip install "koventures-ai-router[governance-extra]"
+pip install "accolaide-ai-router[governance-extra]"
 
 # Local model inference adapters
-pip install "koventures-ai-router[adapters]"
+pip install "accolaide-ai-router[adapters]"
 ```
 
 ## Quick Start
 
 ```python
-from koventures_ai_router import ModelRouter, UseCase
-from koventures_ai_router.governance import AIGovernanceManager, AuditLogger, ComplianceAuditTrail
+from accolaide_ai_router import ModelRouter, UseCase
+from accolaide_ai_router.governance import AIGovernanceManager, AuditLogger, ComplianceAuditTrail
 
 # 1. Initialise governance
 gov = AIGovernanceManager()
@@ -66,7 +66,7 @@ print(decision.model_id, decision.decision_id)
 The package re-exports its public surface from the top-level module:
 
 ```python
-from koventures_ai_router import (
+from accolaide_ai_router import (
     # Router
     ModelRouter,
     UseCase,
@@ -125,7 +125,7 @@ class UseCase(Enum):
 Every routed decision is logged automatically. Wire singletons once at startup:
 
 ```python
-from koventures_ai_router.router import init_governance
+from accolaide_ai_router.router import init_governance
 
 init_governance(gov=gov, audit=audit)
 ```
@@ -135,7 +135,7 @@ init_governance(gov=gov, audit=audit)
 Classify your feature before routing:
 
 ```python
-from koventures_ai_router.classifier import RiskWizard
+from accolaide_ai_router.classifier import RiskWizard
 
 wizard = RiskWizard()
 result = wizard.assess(
@@ -150,21 +150,21 @@ print(result.risk_tier)  # ModelRiskLevel.HIGH
 - Versions follow SemVer. The synced package is `0.2.0`.
 - Pin to a tag in production:
   ```text
-  koventures-ai-router @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git
+  accolaide-ai-router @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git
   ```
 - Track `main` for bleeding-edge development:
   ```text
-  koventures-ai-router @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git@main
+  accolaide-ai-router @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git@main
   ```
 
 ## Updating
 
 ```bash
 # Update to latest tag
-pip install --upgrade "koventures-ai-router @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git"
+pip install --upgrade "accolaide-ai-router @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git"
 
 # Or pin to a newer tag
-pip install "koventures-ai-router @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git@v0.2.0"
+pip install "accolaide-ai-router @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git@v0.2.0"
 ```
 
 ## Dependencies
@@ -179,7 +179,7 @@ pip install "koventures-ai-router @ git+https://github.com/OnkarBhattacharya/kov
 
 ## Troubleshooting
 
-**ImportError:** Ensure you installed the package and your `PYTHONPATH` is not shadowing it with an older local `koventures_ai_router/` directory.
+**ImportError:** Ensure you installed the package and your `PYTHONPATH` is not shadowing it with an older local `accolaide_ai_router/` directory.
 
 **Git install fails:** Check network access to GitHub. In restricted environments, vendor the package or use an internal mirror.
 

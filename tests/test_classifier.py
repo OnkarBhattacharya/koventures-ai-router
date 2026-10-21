@@ -1,9 +1,9 @@
-"""Tests for koventures_ai_router.classifier"""
+"""Tests for accolaide_ai_router.classifier"""
 
 import pytest
 
-from koventures_ai_router.classifier import RiskAssessmentResult, RiskWizard
-from koventures_ai_router.governance import ModelRiskLevel
+from accolaide_ai_router.classifier import RiskAssessmentResult, RiskWizard
+from accolaide_ai_router.governance import ModelRiskLevel
 
 
 def test_risk_wizard_all_no_returns_low_risk():

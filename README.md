@@ -1,4 +1,4 @@
-# KOVentures AI Router
+# Accolaide AI Router
 
 **Version:** 0.2.0
 **Python:** 3.11+
@@ -6,9 +6,9 @@
 
 Policy-aware AI model router with governance, audit logging, and EU AI Act compliance.
 
-This tree is synced from the `koventures_ai_router` package in the OMsolutions repository. Package version 0.2.0 is the installable release of that code. It is a governance and routing layer. It is not a forecasting model and it is not a grid optimiser.
+This tree is synced from the `koventures_ai_router` package in the OMsolutions repository and published here as `accolaide-ai-router` (import `accolaide_ai_router`). Package version 0.2.0 is the installable release of that code. It is a governance and routing layer. It is not a forecasting model and it is not a grid optimiser.
 
-The router loads its model allowlist from `koventures_ai_router/backend/services/model_security.py`, a copy of the OMsolutions chat-app allowlist, so the package imports outside that monorepo. Inside OMsolutions the same loader still prefers `chat-app/backend/services/model_security.py` when that file is on the walk.
+The router loads its model allowlist from `accolaide_ai_router/backend/services/model_security.py`, a copy of the OMsolutions chat-app allowlist, so the package imports outside that monorepo. Inside OMsolutions the same loader still prefers `chat-app/backend/services/model_security.py` when that file is on the walk.
 
 ## Features
 
@@ -21,10 +21,10 @@ The router loads its model allowlist from `koventures_ai_router/backend/services
 
 ## Installation
 
-The package is not published on PyPI. Install from this GitHub repository:
+The package is not published on PyPI. The pip project name is `accolaide-ai-router`. The GitHub repository slug is still `koventures-ai-router`. Install from that repository:
 
 ```bash
-pip install "koventures-ai-router @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git"
+pip install "accolaide-ai-router @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git"
 ```
 
 `headroom-ai` is a required dependency. Install the PyPI project `headroom-ai`, not the unrelated project named `headroom`.
@@ -32,8 +32,8 @@ pip install "koventures-ai-router @ git+https://github.com/OnkarBhattacharya/kov
 Extras:
 
 ```bash
-pip install "koventures-ai-router[governance-extra] @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git"
-pip install "koventures-ai-router[adapters] @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git"
+pip install "accolaide-ai-router[governance-extra] @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git"
+pip install "accolaide-ai-router[adapters] @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git"
 ```
 
 See [USAGE.md](USAGE.md) for embedding the package in another project.
@@ -41,8 +41,8 @@ See [USAGE.md](USAGE.md) for embedding the package in another project.
 ## Quick start
 
 ```python
-from koventures_ai_router import ModelRouter, UseCase
-from koventures_ai_router.governance import AIGovernanceManager, AuditLogger, ComplianceAuditTrail
+from accolaide_ai_router import ModelRouter, UseCase
+from accolaide_ai_router.governance import AIGovernanceManager, AuditLogger, ComplianceAuditTrail
 
 gov = AIGovernanceManager()
 audit = ComplianceAuditTrail(AuditLogger())
@@ -60,7 +60,8 @@ Headroom compression stays off unless `HEADROOM_ENABLED=true`. When it is on, th
 ## Layout
 
 ```
-koventures_ai_router/
+accolaide_ai_router/
+├── backend/services/model_security.py
 ├── governance/
 │   ├── ai_governance.py
 │   ├── audit_logging.py

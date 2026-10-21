@@ -1,5 +1,5 @@
 include LICENSE
 include README.md
 include MANIFEST.in
-recursive-include koventures_ai_router *.py
+recursive-include accolaide_ai_router *.py
 recursive-exclude __pycache__ *.pyc

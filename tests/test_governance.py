@@ -1,8 +1,8 @@
-"""Tests for koventures_ai_router.governance"""
+"""Tests for accolaide_ai_router.governance"""
 
 import pytest
 
-from koventures_ai_router.governance import (
+from accolaide_ai_router.governance import (
     AIDecisionType,
     AIGovernanceManager,
     AuditEvent,
@@ -11,7 +11,7 @@ from koventures_ai_router.governance import (
     ComplianceAuditTrail,
     ModelRiskLevel,
 )
-from koventures_ai_router.governance.api_governance import RateLimiter, RateLimitStrategy
+from accolaide_ai_router.governance.api_governance import RateLimiter, RateLimitStrategy
 
 
 def test_ai_governance_manager_logs_decisions():

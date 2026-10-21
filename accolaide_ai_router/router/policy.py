@@ -1,4 +1,4 @@
-"""Routing policy for the KOVentures AI router.
+"""Routing policy for the Accolaide AI router.
 
 This module is the single place a compliance officer (not a developer)
 should need to edit when a new feature is added or a regulator's
@@ -140,9 +140,10 @@ def _load_allowlist_ids() -> set:
     safe from inside the router package (the chat-app directory name
     contains a hyphen and cannot be imported as a module directly).
 
-    Works whether this package is imported from the repo root or from the
-    nested ``chat-app/koventures_ai_router`` copy (parent walk would otherwise
-    resolve to ``chat-app/chat-app/...``).
+    Works from this package root. The parent walk finds
+    ``backend/services/model_security.py`` vendored beside the router.
+    Inside OMsolutions the same loader still prefers
+    ``chat-app/backend/services/model_security.py``.
     """
     import importlib.util
 

@@ -1,4 +1,4 @@
-"""KOVentures AI Router — policy-aware model routing with governance."""
+"""Accolaide AI Router — policy-aware model routing with governance."""
 
 __version__ = "0.2.0"
 
