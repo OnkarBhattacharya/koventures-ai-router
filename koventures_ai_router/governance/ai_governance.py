@@ -115,14 +115,47 @@ class ModelCard:
             "limitations": self.limitations,
             "performance_metrics": self.performance_metrics,
             "performance_disaggregated": self.performance_disaggregated,
+            "training_data_description": self.training_data_description,
+            "evaluation_data_description": self.evaluation_data_description,
             "bias_analysis": self.bias_analysis,
             "fairness_considerations": self.fairness_considerations,
             "explainability_method": self.explainability_method,
+            "transparency_notes": self.transparency_notes,
+            "recommendations": self.recommendations,
             "environmental_impact": {
                 "training_compute_kwh": self.training_compute,
                 "inference_compute_kwh": self.inference_compute
             }
         }
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> "ModelCard":
+        """Rebuild a model card from :meth:`to_dict` output (persistence)."""
+        card = cls(
+            model_name=data.get("model_name", ""),
+            version=data.get("version", ""),
+            developer=data.get("developer", ""),
+        )
+        card.id = data.get("id", card.id)
+        card.created_at = datetime.fromisoformat(data["created_at"]) if data.get("created_at") else card.created_at
+        card.last_updated = datetime.fromisoformat(data["last_updated"]) if data.get("last_updated") else card.last_updated
+        card.description = data.get("description", "")
+        card.intended_use = list(data.get("intended_use", []))
+        card.constraints = list(data.get("constraints", []))
+        card.limitations = list(data.get("limitations", []))
+        card.performance_metrics = dict(data.get("performance_metrics", {}))
+        card.performance_disaggregated = dict(data.get("performance_disaggregated", {}))
+        card.training_data_description = data.get("training_data_description", "")
+        card.evaluation_data_description = data.get("evaluation_data_description", "")
+        card.bias_analysis = list(data.get("bias_analysis", []))
+        card.fairness_considerations = list(data.get("fairness_considerations", []))
+        card.explainability_method = data.get("explainability_method", "")
+        card.transparency_notes = data.get("transparency_notes", "")
+        card.recommendations = list(data.get("recommendations", []))
+        env = data.get("environmental_impact", {}) or {}
+        card.training_compute = env.get("training_compute_kwh")
+        card.inference_compute = env.get("inference_compute_kwh")
+        return card
 
 
 class ExplainabilityProvider:
@@ -164,12 +197,59 @@ class ExplainabilityProvider:
 class AIDecisionLog:
     """Log AI decision-making for transparency and accountability"""
     
+    # DB collections used for durable governance records. Same DB-backed
+    # store the audit hash chain uses (plan task 2.2, Q3): one row per
+    # entity, JSON payload, via the db.collection(...).add/document().set()
+    # abstraction (LocalStorage or Firestore).
+    DECISIONS_COLLECTION = "ai_decisions"
+    DISPUTES_COLLECTION = "ai_disputes"
+
     def __init__(self, db=None):
         self.db = db
         # Refactored to support a repository pattern for persistence
-        self.decisions: List[Dict] = [] 
-        self.disputes: List[Dict] = []  
+        self.decisions: List[Dict] = []
+        self.disputes: List[Dict] = []
         self.storage_enabled = os.getenv("PERSISTENCE_ENABLED", "false").lower() == "true"
+        if self.db:
+            # Load persisted decisions/disputes so governance records survive
+            # restarts (same durability expectation as the audit chain).
+            self._load_from_db()
+
+    @staticmethod
+    def _restore_id(record: Dict, doc: Any) -> Dict:
+        """Restore the entity id from the document reference if the backend
+        (e.g. the local SQLite store) stores it as the document id instead of
+        inside the payload."""
+        if not record.get("id"):
+            record = {**record, "id": getattr(doc, "id", "") or record.get("id", "")}
+        return record
+
+    def _load_from_db(self) -> None:
+        for attr, collection in (
+            ("decisions", self.DECISIONS_COLLECTION),
+            ("disputes", self.DISPUTES_COLLECTION),
+        ):
+            try:
+                for doc in self.db.collection(collection).stream():
+                    data = doc.to_dict()
+                    if not data:
+                        continue
+                    getattr(self, attr).append(self._restore_id(data, doc))
+            except Exception as exc:
+                logger.warning("Could not load %s from database: %s", collection, exc)
+
+    def _persist_record(self, collection: str, record: Dict) -> None:
+        """Best-effort durable write of one governance record (JSON payload)."""
+        if not self.db:
+            return
+        try:
+            self.db.collection(collection).document(record["id"]).set(record)
+        except Exception as exc:
+            logger.error("Failed to persist %s record: %s", collection, exc)
+
+    def _update_record(self, collection: str, record: Dict) -> None:
+        self._persist_record(collection, record)
+
     
     def log_decision(self, user_id: str, decision_type: AIDecisionType,
                      input_data: Dict, output: Any, model_version: str,
@@ -197,13 +277,12 @@ class AIDecisionLog:
         }
         
         self.decisions.append(decision_record)
-        
-        if self.storage_enabled:
-            if self.db:
-                try:
-                    self.db.collection("ai_decisions").add(decision_record)
-                except Exception as e:
-                    logger.error(f"Failed to persist AI decision: {e}")
+
+        if self.db:
+            # Durable write via the shared DB-backed store (survives restarts).
+            self._persist_record(self.DECISIONS_COLLECTION, decision_record)
+        elif self.storage_enabled:
+            logger.warning("PERSISTENCE_ENABLED set but no db configured; decision kept in memory only")
 
         if human_review_required:
             logger.info(f"Decision marked for human review: {decision_id}")
@@ -229,11 +308,13 @@ class AIDecisionLog:
         }
         
         self.disputes.append(dispute_record)
+        self._persist_record(self.DISPUTES_COLLECTION, dispute_record)
         
         # Mark decision for review
         for decision in self.decisions:
             if decision["id"] == decision_id:
                 decision["human_review_required"] = True
+                self._update_record(self.DECISIONS_COLLECTION, decision)
                 logger.info(f"Dispute logged for decision {decision_id}: {reason}")
         
         return dispute_id
@@ -247,12 +328,22 @@ class AIDecisionLog:
                 decision["human_review_notes"] = review_notes
                 decision["human_override"] = overridden
                 decision["review_completed_at"] = datetime.now(timezone.utc).isoformat()
+                self._update_record(self.DECISIONS_COLLECTION, decision)
                 
                 logger.info(f"Human review completed for decision {decision_id}")
                 return True
         
         return False
     
+    def update_decision(self, decision_id: str, changes: Dict) -> bool:
+        """Merge ``changes`` into an existing decision and persist it."""
+        for decision in self.decisions:
+            if decision["id"] == decision_id:
+                decision.update(changes)
+                self._update_record(self.DECISIONS_COLLECTION, decision)
+                return True
+        return False
+
     @staticmethod
     def _create_input_summary(input_data: Dict) -> Dict:
         """Create a summary of input data without storing sensitive details"""
@@ -266,6 +357,10 @@ class AIDecisionLog:
 class AIGovernanceManager:
     """Central management for AI governance and compliance"""
     
+    # DB collection for durable model cards (plan task 2.2, Q4: model cards
+    # are per-model governance metadata that must survive restarts).
+    MODEL_CARDS_COLLECTION = "model_cards"
+
     def __init__(self, db=None):
         self.db = db
         self.model_cards: Dict[str, ModelCard] = {} 
@@ -273,13 +368,46 @@ class AIGovernanceManager:
         self.explainability_provider = ExplainabilityProvider()
         self.audit_trail: List[Dict] = [] # Suggest moving to a dedicated database collection
         self.model_monitoring: Dict[str, Dict] = {}
+        if self.db:
+            self._load_model_cards()
+
+    def _load_model_cards(self) -> None:
+        try:
+            for doc in self.db.collection(self.MODEL_CARDS_COLLECTION).stream():
+                data = doc.to_dict()
+                if not data:
+                    continue
+                if not data.get("id"):
+                    data = {**data, "id": getattr(doc, "id", "")}
+                model_id = getattr(doc, "id", "") or data.get("id")
+                try:
+                    card = ModelCard.from_dict(data)
+                    card.id = model_id  # key = the registered model_id (doc id)
+                    self.model_cards[model_id] = card
+                except Exception as exc:
+                    logger.warning("Could not restore model card %s: %s", model_id, exc)
+        except Exception as exc:
+            logger.warning("Could not load model_cards from database: %s", exc)
     
+    def _persist_model_card(self, model_id: str) -> None:
+        """Best-effort durable write of one model card (plan task 2.2, Q4)."""
+        card = self.model_cards.get(model_id)
+        if not self.db or card is None:
+            return
+        try:
+            self.db.collection(self.MODEL_CARDS_COLLECTION).document(model_id).set(card.to_dict())
+        except Exception as exc:
+            logger.error("Failed to persist model card %s: %s", model_id, exc)
+
     def register_model(self, model_name: str, version: str, developer: str) -> ModelCard:
         """Register a model with documentation"""
         model_id = f"{model_name}_{version}"
         
         model_card = ModelCard(model_name, version, developer)
         self.model_cards[model_id] = model_card
+        # Durable write: model cards are governance metadata that must
+        # survive restarts (plan task 2.2, Q4).
+        self._persist_model_card(model_id)
         
         self._audit("model_registered", model_id, {"model_name": model_name})
         logger.info(f"Model registered: {model_name} v{version}")
@@ -333,6 +461,7 @@ class AIGovernanceManager:
                     model_card.add_performance_metric(metric_name, value, group)
         
         self._audit("performance_recorded", model_id, {"metrics_count": len(metrics)})
+        self._persist_model_card(model_id)
         logger.info(f"Performance metrics recorded for {model_id}")
         
         return True
@@ -348,6 +477,7 @@ class AIGovernanceManager:
         model_card.add_bias_analysis(bias_type, description, mitigation)
         
         self._audit("bias_analysis", model_id, {"bias_type": bias_type})
+        self._persist_model_card(model_id)
         logger.info(f"Bias analysis recorded for {model_id}: {bias_type}")
         
         return True

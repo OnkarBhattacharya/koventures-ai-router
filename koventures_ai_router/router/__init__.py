@@ -1,9 +1,11 @@
 """Router package: policy, adapters, and generation routing."""
 
 from .adapters import (
+    GeminiFlashClient,
+    OpenRouterClient,
+    OllamaClient,
     DeepSeekV4Client,
     GLM52Client,
-    HFHostedAdapter,
     MiniMaxM3Client,
 )
 from .policy import (
@@ -18,14 +20,17 @@ from .router import (
     NoEligibleModelError,
     RoutingDecision,
     init_governance,
+    reset_governance,
     route,
 )
 
 __all__ = [
     "DataSensitivity",
+    "GeminiFlashClient",
+    "OpenRouterClient",
+    "OllamaClient",
     "DeepSeekV4Client",
     "GLM52Client",
-    "HFHostedAdapter",
     "MiniMaxM3Client",
     "ModelRouter",
     "NoEligibleModelError",
@@ -33,6 +38,7 @@ __all__ = [
     "UseCase",
     "UseCasePolicy",
     "init_governance",
+    "reset_governance",
     "resolve",
     "route",
     "MODEL_CATALOG",

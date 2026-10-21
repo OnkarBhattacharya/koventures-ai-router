@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_BASE_URL = "https://api.minimax.chat/v1"
 DEFAULT_MODEL = "minimax/MiniMax-M3-80k"
-DEFAULT_TIMEOUT_SECONDS = 30.0
 
 
 class MiniMaxM3Client:
@@ -20,13 +19,11 @@ class MiniMaxM3Client:
         base_url: str = DEFAULT_BASE_URL,
         model: str = DEFAULT_MODEL,
         group_id: Optional[str] = None,
-        timeout: float = DEFAULT_TIMEOUT_SECONDS,
     ):
         self.api_key = api_key or os.getenv("MINIMAX_API_KEY")
         self.group_id = group_id or os.getenv("MINIMAX_GROUP_ID", "")
         self.base_url = base_url.rstrip("/")
         self.model = model
-        self.timeout = timeout
 
     def generate(
         self,
@@ -50,7 +47,6 @@ class MiniMaxM3Client:
                 api_key=self.api_key,
                 base_url=self.base_url,
                 default_headers={"X-MiniMax-Group-Id": self.group_id} if self.group_id else {},
-                timeout=self.timeout,
             )
             resp = client.chat.completions.create(
                 model=self.model,

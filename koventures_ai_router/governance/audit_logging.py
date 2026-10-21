@@ -13,12 +13,63 @@ import hashlib
 import json
 import logging
 import os
+import threading
 import uuid
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Dict, List, Optional
 
+
 logger = logging.getLogger(__name__)
+
+# Cross-process/cross-module lock: hash + persist event + persist tip must be
+# atomic. Module-level threading.Lock alone is insufficient when the package is
+# imported twice (repo root vs chat-app/ duplicate) or across processes.
+_CHAIN_LOCK = threading.Lock()
+
+# Shared lock path is derived from the DB path so every module copy
+# (repo root vs chat-app/ duplicate) targets the same lock file.
+
+def _chain_lock_path(db=None) -> str:
+    """Resolve a lock file shared by every module copy writing to this DB."""
+    db_path = None
+    if db is not None:
+        db_path = getattr(db, "_db_path", None) or getattr(db, "db_path", None)
+    if db_path:
+        return f"{db_path}.audit_chain.lock"
+    # Fallback: one process-wide lock when no DB path is available.
+    return os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        ".audit_chain.lock",
+    )
+
+
+def _acquire_chain_lock(db=None):
+    """Best-effort file lock so duplicate module copies cannot branch the chain."""
+    lock_path = _chain_lock_path(db)
+    try:
+        import fcntl
+
+        fh = open(lock_path, "a+")
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+        return fh
+    except Exception:
+        return None
+
+
+def _release_chain_lock(fh) -> None:
+    if fh is None:
+        return
+    try:
+        import fcntl
+
+        fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+    except Exception:
+        pass
+    try:
+        fh.close()
+    except Exception:
+        pass
 
 
 class AuditEventType(Enum):
@@ -90,13 +141,22 @@ class AuditEvent:
         """Set operation result"""
         self.result = result
     
-    def compute_hash(self) -> str:
+    def compute_hash(self, prev_hash: str = "") -> str:
         """
         Compute hash for audit log integrity verification.
-        
-        Ensures audit logs haven't been tampered with.
+
+        Includes the previous event's hash so the log forms a tamper-evident
+        chain: altering any entry invalidates every subsequent hash.
+
+        The timestamp is serialized with ``isoformat()`` so the hash computed
+        in-memory matches the hash recomputed from the persisted record (which
+        stores ``timestamp`` as ``isoformat()``). This keeps
+        ``verify_chain_from_db`` consistent with the live chain.
         """
-        data_to_hash = f"{self.id}{self.timestamp}{self.user_id}{self.event_type.value}"
+        data_to_hash = (
+            f"{prev_hash}{self.id}{self.timestamp.isoformat()}{self.user_id}"
+            f"{self.event_type.value}{self.action}"
+        )
         self.hash = hashlib.sha256(data_to_hash.encode()).hexdigest()
         return self.hash
     
@@ -121,12 +181,53 @@ class AuditEvent:
 class AuditLogger:
     """Central audit logging system"""
     
-    def __init__(self, max_logs: int = 100000):
+    def __init__(self, max_logs: int = 100000, db=None):
         self.events: List[AuditEvent] = []
         self.max_logs = max_logs
         self.log_file: Optional[str] = None
+        self.db = db  # Firestore client or LocalStorage instance
         self.enable_persistence = bool(os.getenv('AUDIT_LOG_PERSISTENCE', 'false').lower() == 'true')
+        self._last_hash = ""
+        # Continue the hash chain across restarts so tamper-evidence survives
+        # process restarts (the chain tip is persisted on every log_event).
+        if self.db:
+            try:
+                snap = self.db.collection("audit_log_meta").document("chain").get()
+                if snap and getattr(snap, "exists", False):
+                    self._last_hash = (snap.to_dict() or {}).get("last_hash", "") or ""
+            except Exception as exc:
+                logger.warning("Could not load audit chain tip: %s", exc)
     
+    def _persist_to_db(self, event: AuditEvent) -> None:
+        """Persist audit event to the database if available."""
+        if not self.db:
+            return
+        try:
+            self.db.collection("audit_log").add(event.to_dict())
+        except Exception as exc:
+            logger.error("Failed to persist audit event to database: %s", exc)
+
+    def _persist_chain_tip(self) -> None:
+        """Persist the running hash-chain tip so it survives restarts."""
+        if not self.db:
+            return
+        try:
+            self.db.collection("audit_log_meta").document("chain").set({"last_hash": self._last_hash})
+        except Exception as exc:
+            logger.error("Failed to persist audit chain tip: %s", exc)
+    
+    def _load_chain_tip(self) -> str:
+        """Read the persisted chain tip (empty string if none/unavailable)."""
+        if not self.db:
+            return ""
+        try:
+            snap = self.db.collection("audit_log_meta").document("chain").get()
+            if snap and getattr(snap, "exists", False):
+                return (snap.to_dict() or {}).get("last_hash", "") or ""
+        except Exception as exc:
+            logger.warning("Could not load audit chain tip: %s", exc)
+        return ""
+
     def log_event(self, event_type: AuditEventType, user_id: str,
                   resource: str, action: str,
                   severity: SeverityLevel = SeverityLevel.INFO,
@@ -139,31 +240,52 @@ class AuditLogger:
         Returns:
             Event ID
         """
-        event = AuditEvent(event_type, user_id, resource, action, severity)
-        
-        if details:
-            event.add_details(details)
-        
-        if ip_address:
-            event.ip_address = ip_address
-        
-        if user_agent:
-            event.user_agent = user_agent
-        
-        event.compute_hash()
-        
-        self.events.append(event)
-        
-        # Enforce size limit with rotation
-        if len(self.events) > self.max_logs:
-            self.events = self.events[-self.max_logs:]
-        
-        # Optionally persist to file
+        with _CHAIN_LOCK:
+            file_fh = _acquire_chain_lock(self.db)
+            try:
+                # Always continue from the persisted tip: other AuditLogger
+                # instances (app reloads, tests, multi-worker) may have appended
+                # since this object last wrote. An empty tip after a chain reset
+                # must clear the in-memory hash so the next event starts fresh.
+                if self.db:
+                    self._last_hash = self._load_chain_tip() or ""
+
+                event = AuditEvent(event_type, user_id, resource, action, severity)
+
+                if details:
+                    event.add_details(details)
+
+                if ip_address:
+                    event.ip_address = ip_address
+
+                if user_agent:
+                    event.user_agent = user_agent
+
+                event.compute_hash(self._last_hash)
+
+                self.events.append(event)
+                self._last_hash = event.hash
+
+                # Enforce size limit with rotation
+                if len(self.events) > self.max_logs:
+                    self.events = self.events[-self.max_logs:]
+
+                # Persist to database (survives restarts)
+                self._persist_to_db(event)
+
+                # Persist the chain tip so the tamper-evident chain continues after a restart
+                self._persist_chain_tip()
+            finally:
+                _release_chain_lock(file_fh)
+
+        # Emit Prometheus metrics for this event
+
+        # Optionally persist to file as well
         if self.enable_persistence:
             self._persist_event(event)
-        
+
         logger.debug(f"Audit event logged: {event_type.value} - {resource}")
-        
+
         return event.id
     
     def log_data_access(self, user_id: str, data_type: str, 
@@ -285,13 +407,56 @@ class AuditLogger:
         
         return [e.to_dict() for e in filtered_events[:limit]]
     
-    def verify_log_integrity(self, event_id: str, expected_hash: str) -> bool:
-        """Verify integrity of a specific log entry"""
+    def verify_log_integrity(self, event_id: str = None, expected_hash: str = None) -> bool:
+        """Verify the in-memory hash chain and optionally a specific entry."""
+        prev = ""
         for event in self.events:
-            if event.id == event_id:
-                return event.hash == expected_hash
-        
-        return False
+            if event.compute_hash(prev) != event.hash:
+                return False
+            prev = event.hash
+        if event_id and expected_hash:
+            for event in self.events:
+                if event.id == event_id:
+                    return event.hash == expected_hash
+        return True
+
+    def verify_chain_from_db(self) -> Dict:
+        """Verify the full tamper-evident chain across all persisted events."""
+        if not self.db:
+            return {"ok": False, "reason": "no database configured"}
+        try:
+            events = []
+            for doc in self.db.collection("audit_log").stream():
+                data = doc.to_dict()
+                if not data:
+                    continue
+                # Some backends (e.g. the local SQLite store) persist the event
+                # ``id`` as the document id rather than inside the payload. The
+                # id is part of the hash pre-image, so restore it from the doc
+                # reference when it is missing from the payload.
+                if not data.get("id"):
+                    data = {**data, "id": getattr(doc, "id", "")}
+                events.append(data)
+        except Exception as exc:
+            return {"ok": False, "reason": str(exc)}
+        events.sort(key=lambda e: e.get("timestamp", ""))
+        prev = ""
+        broken_at = None
+        chain_ok = True
+        for e in events:
+            seed = (
+                f"{prev}{e.get('id', '')}{e.get('timestamp', '')}{e.get('user_id', '')}"
+                f"{e.get('event_type', '')}{e.get('action', '')}"
+            )
+            computed = hashlib.sha256(seed.encode()).hexdigest()
+            if computed != e.get("hash"):
+                broken_at = e.get("id")
+                chain_ok = False
+                break
+            prev = e.get("hash", "")
+        if not chain_ok:
+            logger.error("Audit hash chain broken at event %s", broken_at)
+        return {"ok": chain_ok, "event_count": len(events), "broken_at": broken_at}
     
     def generate_audit_report(self, user_id: str = None, days: int = 30) -> Dict:
         """Generate comprehensive audit report"""
@@ -332,6 +497,20 @@ class AuditLogger:
         
         except Exception as e:
             logger.error(f"Failed to persist audit event: {str(e)}")
+
+
+def assert_audit_sink_db_backed(logger: "AuditLogger") -> None:
+    """Fail closed when the audit sink is not DB-backed (plan task 1.2).
+
+    Router AI-Act events are only durable when they flow into the DB-backed
+    hash chain; an in-memory logger means "logged" events evaporate on
+    restart. Production must refuse to boot without a DB-backed sink.
+    """
+    if logger is None or getattr(logger, "db", None) is None:
+        raise RuntimeError(
+            "AUDIT sink is not DB-backed: production requires the hash-chained "
+            "audit trail (AuditLogger(db=...)); refusing to boot."
+        )
 
 
 class ComplianceAuditTrail:

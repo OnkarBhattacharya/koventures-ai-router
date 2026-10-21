@@ -23,6 +23,7 @@ MANIFEST
 
 # Virtual environments
 venv/
+.venv/
 ENV/
 env/
 
@@ -43,6 +44,7 @@ logs/
 
 # Testing
 .pytest_cache/
+.audit_chain.lock
 .ruff_cache/
 
 # Distribution

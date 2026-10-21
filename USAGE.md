@@ -1,19 +1,19 @@
 # Standalone Usage Guide — `koventures-ai-router`
 
-Use this guide to install and use `koventures-ai-router` as a pip package in your own projects (e.g. `AI-governance`, `chat-app`, etc.).
+Use this guide to install `koventures-ai-router` 0.2.0 in another project. The package is proprietary to Accolaide and is not on PyPI. Runtime dependency: `headroom-ai`.
 
 ## Installation
 
 ### Option A — Install directly from GitHub (recommended for personal/private repos)
 
 ```bash
-pip install "koventures-ai-router @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git@v0.1.0"
+pip install "koventures-ai-router @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git"
 ```
 
 In `requirements.txt`:
 
 ```text
-koventures-ai-router @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git@v0.1.0
+koventures-ai-router @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git
 ```
 
 This installs the package directly from the tagged source. No registry or publish step is required.
@@ -25,7 +25,7 @@ If GitHub Packages is enabled for the repo, add the index URL:
 ```text
 --index-url https://python.pkg.github.com/OnkarBhattacharya/simple/
 --extra-index-url https://pypi.org/simple/
-koventures-ai-router==0.1.0
+koventures-ai-router==0.2.0
 ```
 
 ## Extras
@@ -79,9 +79,11 @@ from koventures_ai_router import (
     route,
     # Adapters
     DeepSeekV4Client,
+    GeminiFlashClient,
     GLM52Client,
-    HFHostedAdapter,
     MiniMaxM3Client,
+    OpenRouterClient,
+    OllamaClient,
     # Governance
     AIGovernanceManager,
     AuditLogger,
@@ -145,10 +147,10 @@ print(result.risk_tier)  # ModelRiskLevel.HIGH
 
 ## Versioning
 
-- Versions follow SemVer (`0.1.0`, `1.0.0`, ...).
+- Versions follow SemVer. The synced package is `0.2.0`.
 - Pin to a tag in production:
   ```text
-  koventures-ai-router @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git@v0.1.0
+  koventures-ai-router @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git
   ```
 - Track `main` for bleeding-edge development:
   ```text
@@ -159,7 +161,7 @@ print(result.risk_tier)  # ModelRiskLevel.HIGH
 
 ```bash
 # Update to latest tag
-pip install --upgrade "koventures-ai-router @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git@v0.1.0"
+pip install --upgrade "koventures-ai-router @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git"
 
 # Or pin to a newer tag
 pip install "koventures-ai-router @ git+https://github.com/OnkarBhattacharya/koventures-ai-router.git@v0.2.0"
