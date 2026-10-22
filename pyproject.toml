@@ -3,34 +3,35 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "koventures-ai-router"
-version = "0.1.0"
+name = "accolaide-ai-router"
+version = "0.2.0"
 description = "Policy-aware AI model router with governance, audit logging, and EU AI Act compliance."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
-authors = [{ name = "KOVentures" }]
+license = { text = "Proprietary" }
+authors = [{ name = "Accolaide" }]
 keywords = ["ai", "router", "governance", "audit", "eu-ai-act"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "License :: Other/Proprietary License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
-dependencies = []
+dependencies = ["headroom-ai"]
 
 [project.optional-dependencies]
 governance-extra = ["flask"]
-adapters = ["huggingface_hub", "transformers", "torch"]
+adapters = ["google-generativeai", "openai", "requests"]
+dev = ["pytest>=7.0"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["koventures_ai_router"]
+packages = ["accolaide_ai_router"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "/koventures_ai_router",
+    "/accolaide_ai_router",
     "/LICENSE",
     "/README.md",
     "/MANIFEST.in",

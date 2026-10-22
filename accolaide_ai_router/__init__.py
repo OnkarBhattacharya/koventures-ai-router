@@ -1,6 +1,6 @@
-"""KOVentures AI Router — policy-aware model routing with governance."""
+"""Accolaide AI Router — policy-aware model routing with governance."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 from .classifier import RiskAssessmentResult, RiskWizard
 from .docgen import AnnexIVGenerator, AnnexIVPack
@@ -20,11 +20,13 @@ from .governance import (
 from .router import (
     DataSensitivity,
     DeepSeekV4Client,
+    GeminiFlashClient,
     GLM52Client,
-    HFHostedAdapter,
     MiniMaxM3Client,
     ModelRouter,
     NoEligibleModelError,
+    OpenRouterClient,
+    OllamaClient,
     RoutingDecision,
     UseCase,
     UseCasePolicy,
@@ -47,16 +49,18 @@ __all__ = [
     "DataSensitivity",
     "DeepSeekV4Client",
     "ExplainabilityProvider",
+    "GeminiFlashClient",
     "GLM52Client",
-    "HFHostedAdapter",
     "MiniMaxM3Client",
     "ModelCard",
     "ModelRiskLevel",
     "ModelRouter",
     "NoEligibleModelError",
+    "OpenRouterClient",
+    "OllamaClient",
+    "RoutingDecision",
     "RiskAssessmentResult",
     "RiskWizard",
-    "RoutingDecision",
     "SeverityLevel",
     "UseCase",
     "UseCasePolicy",

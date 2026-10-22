@@ -188,12 +188,21 @@ class APIKeyManager:
         
         # Check expiration
         expiration = datetime.fromisoformat(key_info["expires_at"])
-        if datetime.now(timezone.utc) > expiration:
+        now = datetime.now(timezone.utc)
+        if now > expiration:
             key_info["active"] = False
             return False, None
+        # Warn about near-expiry keys (within 7 days)
+        if (expiration - now).days <= 7:
+            logger.warning(
+                "API key for %s expires in %d days (%s)",
+                key_info["client_name"],
+                (expiration - now).days,
+                expiration.isoformat(),
+            )
         
         # Update last used
-        key_info["last_used"] = datetime.now(timezone.utc).isoformat()
+        key_info["last_used"] = now.isoformat()
         
         return True, key_info["client_name"]
     
@@ -216,6 +225,68 @@ class APIKeyManager:
         """Generate a secure API key"""
         import secrets
         return f"sk_{secrets.token_urlsafe(32)}"
+
+    def expire_old_keys(self) -> int:
+        """Deactivate all expired keys.
+
+        Returns:
+            Number of keys deactivated.
+        """
+        now = datetime.now(timezone.utc)
+        deactivated = 0
+        for _key, info in list(self.api_keys.items()):
+            if not info.get("active"):
+                continue
+            try:
+                expiration = datetime.fromisoformat(info["expires_at"])
+            except Exception:
+                continue
+            if now > expiration:
+                info["active"] = False
+                deactivated += 1
+        if deactivated:
+            logger.info("Deactivated %d expired API keys", deactivated)
+        return deactivated
+
+    def rotate_api_key(self, old_key: str, expiration_days: int = 365) -> Optional[str]:
+        """Revoke an existing API key and create a replacement.
+
+        The new key preserves the original permissions and client name.
+
+        Returns:
+            The new API key, or ``None`` if the old key was not found.
+        """
+        if old_key not in self.api_keys:
+            return None
+        info = self.api_keys[old_key]
+        client_name = info.get("client_name", "unknown")
+        permissions = self.key_permissions.get(old_key, [])
+        self.revoke_api_key(old_key)
+        new_key = self.create_api_key(client_name, permissions, expiration_days=expiration_days)
+        logger.info("Rotated API key for %s", client_name)
+        return new_key
+
+    def get_expiring_soon(self, days: int = 7) -> List[Dict[str, Any]]:
+        """Return keys expiring within ``days`` days."""
+        now = datetime.now(timezone.utc)
+        results = []
+        for key, info in self.api_keys.items():
+            if not info.get("active"):
+                continue
+            try:
+                expiration = datetime.fromisoformat(info["expires_at"])
+            except Exception:
+                continue
+            remaining = (expiration - now).total_seconds() / 86400
+            if 0 <= remaining <= days:
+                results.append({
+                    "key": key,
+                    "client_name": info.get("client_name"),
+                    "expires_at": info.get("expires_at"),
+                    "remaining_days": round(remaining, 1),
+                })
+        results.sort(key=lambda item: item["remaining_days"])
+        return results
 
 
 class RequestValidator:
@@ -375,4 +446,21 @@ class APIGovernanceManager:
             "client": client or "all_clients",
             "total_requests": len(filtered_log),
             "endpoint_statistics": endpoint_stats
+        }
+
+    def enforce_key_rotation(self) -> Dict:
+        """Enforce API key expiration and rotation hygiene.
+
+        Returns:
+            Summary dict with expired key count and keys nearing expiry.
+        """
+        expired_count = self.api_key_manager.expire_old_keys()
+        expiring_soon = self.api_key_manager.get_expiring_soon(days=7)
+        return {
+            "expired_count": expired_count,
+            "expiring_soon_count": len(expiring_soon),
+            "expiring_soon": expiring_soon,
+            "total_active_keys": sum(
+                1 for info in self.api_key_manager.api_keys.values() if info.get("active")
+            ),
         }

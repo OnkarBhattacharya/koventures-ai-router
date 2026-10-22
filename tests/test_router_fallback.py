@@ -2,9 +2,9 @@
 
 import pytest
 
-from koventures_ai_router.governance import AIGovernanceManager, AuditLogger, ComplianceAuditTrail
-from koventures_ai_router.router import ModelRouter, UseCase
-from koventures_ai_router.router.router import CircuitBreaker
+from accolaide_ai_router.governance import AIGovernanceManager, AuditLogger, ComplianceAuditTrail
+from accolaide_ai_router.router import ModelRouter, UseCase
+from accolaide_ai_router.router.router import CircuitBreaker
 
 
 @pytest.fixture()
@@ -30,7 +30,7 @@ class _StubAdapter:
 def test_generate_with_fallback_first_choice_success(router, monkeypatch):
     stub = _StubAdapter(text="hello")
     monkeypatch.setattr(
-        "koventures_ai_router.router.router._get_adapter", lambda model_id: stub
+        "accolaide_ai_router.router.router._get_adapter", lambda model_id: stub
     )
     result = router.generate_with_fallback(
         use_case=UseCase.OPEN_CHAT,
@@ -53,7 +53,7 @@ def test_generate_with_fallback_falls_back_to_next_candidate(router, monkeypatch
             return _StubAdapter(text=None)  # returns no text -> counts as failure
         return _StubAdapter(text="from-fallback")
 
-    monkeypatch.setattr("koventures_ai_router.router.router._get_adapter", get_adapter)
+    monkeypatch.setattr("accolaide_ai_router.router.router._get_adapter", get_adapter)
     result = router.generate_with_fallback(
         use_case=UseCase.OPEN_CHAT,
         user_id="user-1",
@@ -76,7 +76,7 @@ def test_generate_with_fallback_skips_open_circuit(router, monkeypatch):
         seen.append(model_id)
         return _StubAdapter(text="ok")
 
-    monkeypatch.setattr("koventures_ai_router.router.router._get_adapter", get_adapter)
+    monkeypatch.setattr("accolaide_ai_router.router.router._get_adapter", get_adapter)
     result = router.generate_with_fallback(
         use_case=UseCase.OPEN_CHAT,
         user_id="user-1",
@@ -91,7 +91,7 @@ def test_generate_with_fallback_skips_open_circuit(router, monkeypatch):
 def test_record_output_attaches_text_to_decision(router, monkeypatch):
     stub = _StubAdapter(text="answer")
     monkeypatch.setattr(
-        "koventures_ai_router.router.router._get_adapter", lambda model_id: stub
+        "accolaide_ai_router.router.router._get_adapter", lambda model_id: stub
     )
     decision = router.route(
         use_case=UseCase.OPEN_CHAT,
